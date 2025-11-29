@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Spotless — Inbox</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:Inter,system-ui,Arial;background:#f7fafc;margin:0}
+    .wrap{max-width:1100px;margin:24px auto;padding:18px}
+    .row{display:flex;gap:16px}
+    .col{background:#fff;border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(2,6,23,0.04)}
+    .left{width:360px;flex-shrink:0}
+    .right{flex:1;min-height:420px}
+    .booking-item{padding:10px;border-bottom:1px solid #eee;cursor:pointer}
+    .booking-item:hover{background:#f1fbff}
+    #messages{height:360px;overflow:auto;padding:8px}
+    .msg{margin-bottom:8px;padding:8px;border-radius:8px}
+    .msg.customer{background:#f1f6f8}
+    .msg.cleaner{background:#e0fff9}
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .btn{background:#06b6d4;color:#fff;padding:8px 12px;border-radius:8px;border:0;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <h2>Cleaner Inbox</h2>
+      <div>
+        <a href="index.html" style="margin-right:12px">Back to site</a>
+        <button id="refreshBtn" class="btn">Refresh</button>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col left">
+        <h4>Bookings</h4>
+        <div id="bookingsList">Loading…</div>
+      </div>
+
+      <div class="col right">
+        <h4 id="roomTitle">Select a booking to view chat</h4>
+        <div id="messages">No booking selected</div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <input id="replyText" style="flex:1;padding:10px;border-radius:8px;border:1px solid #e6eef0" placeholder="Type reply...">
+          <button id="sendReplyBtn" class="btn">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+  <script>
+    const SUPABASE_URL = "https://zlkvkzmkenbtuvulfpsl.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpsa3Zrem1rZW5idHV2dWxmcHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQzOTg3MTIsImV4cCI6MjA3OTk3NDcxMn0.wdEv5EWZIBOCZ6NRzY67xLO0ekXKsHjw9GHGK5Akhlw";
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let currentBooking = null;
+    async function loadBookings(){
+      const { data, error } = await supabase.from('bookings').select('*').order('created_at',{ascending:false});
+      const list = document.getElementById('bookingsList');
+      list.innerHTML = '';
+      if(error){ list.innerHTML = '<div>Error loading bookings</div>'; return; }
+      data.forEach(b => {
+        const el = document.createElement('div');
+        el.className = 'booking-item';
+        el.innerHTML = `<strong>${b.name}</strong><div style="font-size:13px;color:#666">${b.service} · ${b.date} ${b.time}</div><div style="font-size:12px;color:#999">${b.address}</div>`;
+        el.onclick = ()=> openBooking(b);
+        list.appendChild(el);
+      });
+      if(data.length===0) list.innerHTML = '<div style="color:#666">No bookings yet</div>';
+    }
+
+    async function openBooking(b){
+      currentBooking = b;
+      document.getElementById('roomTitle').textContent = `Booking #${b.id} — ${b.name} (${b.service})`;
+      await loadMessages(b.id);
+      // subscribe to messages for this booking
+      if(window.bookingChannel) { try { await supabase.removeChannel(window.bookingChannel); } catch(e) {} }
+      window.bookingChannel = supabase.channel('messagesBooking'+b.id)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: 'booking_id=eq.'+b.id }, payload => {
+          appendMessage(payload.new);
+        }).subscribe();
+    }
+
+    async function loadMessages(bookingId){
+      const { data } = await supabase.from('messages').select('*').eq('booking_id', bookingId).order('created_at',{ascending:true});
+      const box = document.getElementById('messages'); box.innerHTML = '';
+      if(!data || data.length===0){ box.innerHTML = '<div style="color:#666">No messages yet</div>'; return; }
+      data.forEach(m => appendMessage(m));
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function appendMessage(m){
+      const box = document.getElementById('messages');
+      const el = document.createElement('div');
+      el.className = 'msg ' + (m.sender==='cleaner' ? 'cleaner' : (m.sender==='customer' ? 'customer' : ''));
+      const ts = new Date(m.created_at).toLocaleString();
+      el.innerHTML = `<div style="font-size:13px;color:#333">${m.text}</div><div style="font-size:11px;color:#777">${m.sender} · ${ts}</div>`;
+      box.appendChild(el);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    document.getElementById('sendReplyBtn').addEventListener('click', async ()=>{
+      const txt = document.getElementById('replyText').value.trim();
+      if(!txt || !currentBooking) return alert('Select a booking and type a message.');
+      await supabase.from('messages').insert([{ booking_id: currentBooking.id, sender: 'cleaner', text: txt }]);
+      document.getElementById('replyText').value = '';
+    });
+
+    document.getElementById('refreshBtn').addEventListener('click', loadBookings);
+
+    // subscribe to new bookings so you see them live
+    supabase.channel('bookings')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'bookings' }, payload => { loadBookings(); })
+      .subscribe();
+
+    loadBookings();
+  </script>
+</body>
+</html>

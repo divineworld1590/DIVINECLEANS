@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Thank you — Spotless</title>
+  <style>
+    body{font-family:Inter,Arial,Helvetica;background:#f8fafc;margin:0;padding:40px;color:#0f172a}
+    .box{max-width:700px;margin:40px auto;background:white;padding:28px;border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.06);text-align:center}
+    .muted{color:#6b7280}
+    a.btn{display:inline-block;margin-top:18px;padding:10px 14px;border-radius:10px;background:#06b6d4;color:white;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Thanks — your booking is received</h1>
+    <p class="muted" id="summary">We sent a confirmation to your email.</p>
+    <a class="btn" href="index.html">Back to home</a>
+  </div>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const service = params.get('service') || '';
+    const date = params.get('date') || '';
+    const time = params.get('time') || '';
+    const address = params.get('address') || params.get('addr') || '';
+    const name = params.get('name') || '';
+    const estimate = params.get('estimate') || '';
+    const parts = [];
+    if(service) parts.push('Service: ' + service);
+    if(date) parts.push('Date: ' + date);
+    if(time) parts.push('Time: ' + time);
+    if(address) parts.push('Address: ' + address);
+    if(estimate) parts.push('Estimate: ' + estimate);
+    if(name) parts.unshift('Hi ' + name + ',');
+    if(parts.length) document.getElementById('summary').textContent = parts.join(' • ');
+  </script>
+</body>
+</html>

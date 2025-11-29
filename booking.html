@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Book a Cleaner — Spotless</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--accent:#06b6d4;--muted:#6b7280;font-family:'Inter',system-ui,Arial;}
+    body{margin:0;background:#f8fafc;color:#0f172a;padding:24px}
+    .card{max-width:720px;margin:36px auto;background:white;padding:20px;border-radius:12px;box-shadow:0 8px 30px rgba(2,6,23,0.06)}
+    label{display:block;margin-top:12px;color:var(--muted)}
+    input,select,textarea{width:100%;padding:10px;margin-top:6px;border:1px solid #eef2f5;border-radius:8px}
+    .row{display:flex;gap:12px}
+    .row .col{flex:1}
+    .btn{background:var(--accent);color:white;padding:10px 16px;border-radius:10px;border:0;cursor:pointer;margin-top:14px}
+    .small{font-size:13px;color:var(--muted)}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Complete your booking</h2>
+    <form id="bookingForm">
+      <label for="service">Service</label>
+      <select id="service" name="service">
+        <option value="standard" data-price="20">Standard Cleaning</option>
+        <option value="deep" data-price="20">Deep Cleaning</option>
+        <option value="move" data-price="20">Move In / Out (Flat)</option>
+      </select>
+
+      <div class="row">
+        <div class="col">
+          <label for="date">Date</label>
+          <input type="date" id="date" name="date">
+        </div>
+        <div class="col">
+          <label for="time">Time</label>
+          <input type="time" id="time" name="time">
+        </div>
+      </div>
+
+      <label for="duration">Duration (hours)</label>
+      <input type="number" id="duration" name="duration" value="2" min="1">
+
+      <label for="address">Address</label>
+      <input type="text" id="address" name="address" placeholder="123 Main St, City, Province">
+
+      <label for="name">Your name</label>
+      <input type="text" id="name" name="name">
+
+      <label for="email">Email</label>
+      <input type="text" id="email" name="email">
+
+      <div style="margin-top:12px;display:flex;align-items:center;justify-content:space-between">
+        <div class="small">Estimated: <span id="estimate">$0.00</span></div>
+        <button class="btn" type="submit">Confirm booking</button>
+      </div>
+    </form>
+    <p class="small" style="margin-top:12px">This is a demo flow — connect to a backend to accept payments and store bookings.</p>
+  </div>
+
+  <script>
+    // Pricing same logic as index
+    let jobsCompleted = 0;
+    let avgRating = 5;
+    function getDynamicRate(base){ if(avgRating < 4.5) return base; const tiers = Math.floor(jobsCompleted / 20); return base * (1 + 0.10 * tiers); }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const serviceSelect = document.getElementById('service');
+    const dateEl = document.getElementById('date');
+    const timeEl = document.getElementById('time');
+    const durationEl = document.getElementById('duration');
+    const addressEl = document.getElementById('address');
+    const nameEl = document.getElementById('name');
+    const emailEl = document.getElementById('email');
+    const estimateEl = document.getElementById('estimate');
+
+    // Pre-fill from index if params present
+    if(urlParams.get('service')) serviceSelect.value = urlParams.get('service');
+    if(urlParams.get('date')) dateEl.value = urlParams.get('date');
+    if(urlParams.get('time')) timeEl.value = urlParams.get('time');
+    if(urlParams.get('addr')) addressEl.value = urlParams.get('addr');
+    if(urlParams.get('dur')) durationEl.value = urlParams.get('dur');
+
+    function calc(){
+      const opt = serviceSelect.options[serviceSelect.selectedIndex];
+      let base = Number(opt.dataset.price || 20);
+      if(opt.value !== 'move') base = getDynamicRate(base);
+      const dur = Number(durationEl.value || 1);
+      const total = (opt.value === 'move') ? base : base * dur;
+      estimateEl.textContent = '$' + total.toFixed(2);
+    }
+
+    serviceSelect.addEventListener('change', calc);
+    durationEl.addEventListener('input', calc);
+    document.addEventListener('DOMContentLoaded', calc);
+
+    document.getElementById('bookingForm').addEventListener('submit', function(e){
+      e.preventDefault();
+      // form validation
+      if(!dateEl.value || !timeEl.value || !addressEl.value.trim() || !nameEl.value.trim() || !emailEl.value.trim()){
+        alert('Please fill date, time, address, name and email.');
+        return;
+      }
+      // Here you'd POST the booking to your backend. For demo, redirect to thank-you with params.
+      const data = new URLSearchParams({
+        service: serviceSelect.value,
+        date: dateEl.value,
+        time: timeEl.value,
+        address: addressEl.value,
+        name: nameEl.value,
+        email: emailEl.value,
+        estimate: estimateEl.textContent
+      });
+      window.location.href = 'thankyou.html?' + data.toString();
+    });
+  </script>
+</body>
+</html>

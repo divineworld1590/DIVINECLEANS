@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Spotless — Book a cleaner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    :root{--accent:#06b6d4;--dark:#0f172a;--muted:#6b7280;--card:#fff}
+    *{box-sizing:border-box} body{margin:0;background:#f8fafc;color:var(--dark);font-family:Inter,system-ui,Arial}
+    .container{max-width:1100px;margin:0 auto;padding:24px}
+    header{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
+    .brand{display:flex;align-items:center;gap:12px}
+    .logo{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#0ea5a9);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
+    .hero{display:grid;grid-template-columns:1fr 420px;gap:28px;align-items:start;padding:28px 0}
+    .field{display:flex;flex-direction:column;margin-bottom:12px}
+    input, select, textarea{padding:10px;border:1px solid #e6eef0;border-radius:8px}
+    .btn{background:var(--accent);color:#fff;padding:10px 16px;border-radius:10px;border:0;cursor:pointer}
+    .map-wrapper{height:160px;border-radius:8px;overflow:hidden;background:#eef2f5}
+    #map{width:100%;height:100%}
+    /* Chat */
+    #chatWidget{position:fixed;right:20px;bottom:20px;width:320px;max-width:calc(100% - 40px);display:none;flex-direction:column;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.15);overflow:hidden;background:#fff}
+    #chatHeader{background:var(--accent);color:#fff;padding:10px;font-weight:700}
+    #chatMessages{height:280px;overflow:auto;padding:10px}
+    .msg-customer{background:#f1f6f8;padding:8px;border-radius:8px;margin-bottom:8px;display:inline-block}
+    .msg-cleaner{background:#e0fff9;padding:8px;border-radius:8px;margin-bottom:8px;display:inline-block}
+    #chatInput{display:flex;border-top:1px solid #eee}
+    #chatInput input{flex:1;padding:10px;border:0;outline:none}
+    #chatInput button{background:var(--accent);color:#fff;border:0;padding:10px 12px;cursor:pointer}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand"><div class="logo">S</div><div><div style="font-weight:700">Spotless</div><div style="font-size:12px;color:var(--muted)">Trusted cleaners on demand</div></div></div>
+      <nav><a href="#services" style="color:var(--muted);text-decoration:none;margin-left:18px">Services</a></nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div>
+          <h1>Book vetted cleaners in minutes — home, office, or one-off tasks</h1>
+          <p style="color:var(--muted)">Fast booking, secure messaging and instant confirmations.</p>
+
+          <div style="margin-top:18px">
+            <div class="field"><label>Full name</label><input id="custName" type="text" placeholder="Your name"></div>
+            <div class="field"><label>Email</label><input id="custEmail" type="email" placeholder="you@example.com"></div>
+            <div class="field"><label>Service</label>
+              <select id="serviceSelect">
+                <option value="standard" data-price="20">Standard Cleaning</option>
+                <option value="deep" data-price="35">Deep Cleaning</option>
+                <option value="move" data-price="80">Move In/Out — Flat</option>
+              </select>
+            </div>
+            <div class="field"><label>Date</label><input id="date" type="date"></div>
+            <div class="field"><label>Time</label><input id="time" type="time"></div>
+            <div class="field"><label>Duration (hours)</label><input id="duration" type="number" value="2" min="1"></div>
+            <div class="field"><label>Address</label><input id="address" type="text" placeholder="123 Main St"></div>
+
+            <div style="display:flex;align-items:center;gap:8px;margin:12px 0"><strong>Estimated:</strong><div id="estimate">$40.00</div></div>
+
+            <button id="bookNow" class="btn">Confirm booking</button>
+            <div id="bookingMessage" style="color:green;margin-top:10px;display:none">Booking saved — chat opened below.</div>
+          </div>
+        </div>
+
+        <aside>
+          <div style="background:#fff;border-radius:12px;padding:18px;box-shadow:0 6px 18px rgba(2,6,23,0.06)">
+            <h3 style="margin-top:0">Quick booking panel</h3>
+            <p style="color:var(--muted)">Or explore services below.</p>
+            <div class="map-wrapper"><div id="map">Map loading…</div></div>
+          </div>
+        </aside>
+      </section>
+
+      <section id="services" style="margin-top:28px">
+        <h2>All services</h2>
+        <p style="color:var(--muted)">Standard, deep and move-in/out cleaning.</p>
+      </section>
+    </main>
+  </div>
+
+  <!-- Chat widget -->
+  <div id="chatWidget">
+    <div id="chatHeader">Message the cleaner</div>
+    <div id="chatMessages"></div>
+    <div id="chatInput">
+      <input id="chatText" placeholder="Type your message...">
+      <button id="chatSend">Send</button>
+    </div>
+  </div>
+
+  <!-- Leaflet + Supabase -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+
+  <script>
+    // ---------- Supabase init ----------
+    const SUPABASE_URL = "https://zlkvkzmkenbtuvulfpsl.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpsa3Zrem1rZW5idHV2dWxmcHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQzOTg3MTIsImV4cCI6MjA3OTk3NDcxMn0.wdEv5EWZIBOCZ6NRzY67xLO0ekXKsHjw9GHGK5Akhlw";
+    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    // ---------- Map ----------
+    const map = L.map('map').setView([20,0],2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(p=>{
+        const lat=p.coords.latitude, lng=p.coords.longitude;
+        map.setView([lat,lng],12);
+        L.marker([lat,lng]).addTo(map).bindPopup('You are here').openPopup();
+      });
+    }
+
+    // ---------- UI helpers ----------
+    const estimateEl = document.getElementById('estimate');
+    function calcEstimate(){
+      const opt = document.getElementById('serviceSelect').selectedOptions[0];
+      const price = Number(opt.dataset.price || 20);
+      const dur = Number(document.getElementById('duration').value || 1);
+      const total = (opt.value === 'move') ? price : price * dur;
+      estimateEl.textContent = '$' + total.toFixed(2);
+    }
+    document.getElementById('serviceSelect').addEventListener('change', calcEstimate);
+    document.getElementById('duration').addEventListener('input', calcEstimate);
+    calcEstimate();
+
+    // ---------- Booking flow ----------
+    let activeBookingId = null;
+    document.getElementById('bookNow').addEventListener('click', async ()=>{
+      const name = document.getElementById('custName').value.trim();
+      const email = document.getElementById('custEmail').value.trim();
+      const service = document.getElementById('serviceSelect').value;
+      const date = document.getElementById('date').value;
+      const time = document.getElementById('time').value;
+      const duration = document.getElementById('duration').value;
+      const address = document.getElementById('address').value.trim();
+      const price = estimateEl.textContent.replace('$','');
+
+      if(!name || !email || !date || !time || !address){ alert('Please fill required fields'); return; }
+
+      const { data, error } = await supabase.from('bookings').insert([{
+        name, email, service, date, time, duration, address, price, status: 'pending'
+      }]).select().single();
+
+      if(error){ console.error(error); alert('Could not save booking'); return; }
+
+      activeBookingId = data.id;
+      document.getElementById('bookingMessage').style.display = 'block';
+      openChatWidget();
+      // Insert initial system message (optional)
+      await supabase.from('messages').insert([{ booking_id: activeBookingId, sender: 'system', text: 'Booking created. Cleaner will contact you here.' }]);
+    });
+
+    // ---------- Chat widget (customer side) ----------
+    function openChatWidget(){ document.getElementById('chatWidget').style.display='flex'; document.getElementById('chatText').focus(); }
+    async function loadMessagesForBooking(bookingId){
+      if(!bookingId) return;
+      const { data } = await supabase.from('messages').select('*').eq('booking_id', bookingId).order('created_at',{ascending:true});
+      const box = document.getElementById('chatMessages'); box.innerHTML = '';
+      data.forEach(m => appendMsgToBox(m));
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function appendMsgToBox(m){
+      const el = document.createElement('div');
+      if(m.sender === 'cleaner') { el.className = 'msg-cleaner'; el.textContent = 'Cleaner: ' + m.text; }
+      else if(m.sender === 'customer') { el.className = 'msg-customer'; el.textContent = 'You: ' + m.text; }
+      else { el.style.opacity=0.85; el.textContent = m.text; }
+      document.getElementById('chatMessages').appendChild(el);
+    }
+
+    document.getElementById('chatSend').addEventListener('click', async ()=>{
+      const txt = document.getElementById('chatText').value.trim();
+      if(!txt || !activeBookingId) { if(!activeBookingId) alert('Please create booking first.'); return; }
+      await supabase.from('messages').insert([{ booking_id: activeBookingId, sender: 'customer', text: txt }]);
+      document.getElementById('chatText').value = '';
+    });
+
+    // Real-time subscription for messages (all bookings)
+    const channel = supabase.channel('public:messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+        const m = payload.new;
+        // if this message belongs to current booking, append
+        if(m.booking_id === activeBookingId) appendMsgToBox(m);
+      }).subscribe();
+
+    // When chat widget opens after booking, load its messages and subscribe to updates
+    async function ensureBookingChatLoaded(){
+      if(activeBookingId) { await loadMessagesForBooking(activeBookingId); }
+    }
+
+    // helper: when booking created we called openChatWidget; ensure messages load
+    // Poll for activeBookingId set
+    setInterval(()=>{ if(activeBookingId) ensureBookingChatLoaded(); }, 1500);
+
+    // allow pressing Enter to send
+    document.getElementById('chatText').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('chatSend').click(); } });
+
+    // set year
+    document.addEventListener('DOMContentLoaded', ()=>{ try{document.querySelector('footer') && document.getElementById('year') && (document.getElementById('year').textContent = new Date().getFullYear()); }catch(e){} });
+  </script>
+</body>
+</html>
