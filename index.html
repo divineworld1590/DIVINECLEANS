@@ -3,202 +3,367 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Spotless — Book a cleaner</title>
+  <title>Spotless — Home Cleaning & Services</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
   <style>
-    :root{--accent:#06b6d4;--dark:#0f172a;--muted:#6b7280;--card:#fff}
-    *{box-sizing:border-box} body{margin:0;background:#f8fafc;color:var(--dark);font-family:Inter,system-ui,Arial}
+    :root{
+      --accent:#06b6d4; --dark:#0f172a; --muted:#6b7280; --card:#ffffff;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    *{box-sizing:border-box} body{margin:0;background:#f8fafc;color:var(--dark);line-height:1.45}
     .container{max-width:1100px;margin:0 auto;padding:24px}
     header{display:flex;align-items:center;justify-content:space-between;padding:12px 0}
     .brand{display:flex;align-items:center;gap:12px}
-    .logo{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#0ea5a9);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700}
-    .hero{display:grid;grid-template-columns:1fr 420px;gap:28px;align-items:start;padding:28px 0}
+    .logo{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,#06b6d4,#0ea5a9);display:flex;align-items:center;justify-content:center;color:white;font-weight:700}
+    nav a{margin-left:18px;color:var(--muted);text-decoration:none}
+    .hero{display:grid;grid-template-columns:1fr 420px;gap:28px;align-items:center;padding:28px 0}
+    .hero h1{font-size:28px;margin:0 0 12px}
+    .hero p{margin:0 0 18px;color:var(--muted)}
+    .cta-row{display:flex;gap:12px}
+    .btn{background:var(--accent);color:white;padding:10px 16px;border-radius:10px;border:0;cursor:pointer}
+    .outline{background:transparent;border:1px solid #e6eef0;padding:10px 16px;border-radius:10px}
+    .panel{background:var(--card);border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.06);padding:18px}
     .field{display:flex;flex-direction:column;margin-bottom:12px}
-    input, select, textarea{padding:10px;border:1px solid #e6eef0;border-radius:8px}
-    .btn{background:var(--accent);color:#fff;padding:10px 16px;border-radius:10px;border:0;cursor:pointer}
-    .map-wrapper{height:160px;border-radius:8px;overflow:hidden;background:#eef2f5}
-    #map{width:100%;height:100%}
-    /* Chat */
-    #chatWidget{position:fixed;right:20px;bottom:20px;width:320px;max-width:calc(100% - 40px);display:none;flex-direction:column;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.15);overflow:hidden;background:#fff}
-    #chatHeader{background:var(--accent);color:#fff;padding:10px;font-weight:700}
-    #chatMessages{height:280px;overflow:auto;padding:10px}
-    .msg-customer{background:#f1f6f8;padding:8px;border-radius:8px;margin-bottom:8px;display:inline-block}
-    .msg-cleaner{background:#e0fff9;padding:8px;border-radius:8px;margin-bottom:8px;display:inline-block}
-    #chatInput{display:flex;border-top:1px solid #eee}
-    #chatInput input{flex:1;padding:10px;border:0;outline:none}
-    #chatInput button{background:var(--accent);color:#fff;border:0;padding:10px 12px;cursor:pointer}
+    label{font-size:13px;color:var(--muted);margin-bottom:6px}
+    input[type="text"], input[type="date"], input[type="time"], select, textarea{padding:10px;border:1px solid #e6eef0;border-radius:8px}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:18px}
+    .card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 6px 18px rgba(2,6,23,0.04);cursor:pointer;transition:transform .18s,box-shadow .18s}
+    .card:hover{transform:translateY(-6px);box-shadow:0 12px 30px rgba(2,6,23,0.07)}
+    .testimonials{display:flex;gap:12px;margin-top:18px}
+    .testimonial{background:linear-gradient(180deg,#fff,#fbfeff);padding:12px;border-radius:10px;flex:1}
+    footer{margin-top:28px;padding:28px 0;border-top:1px solid #eef2f5;color:var(--muted)}
+    @media (max-width:920px){.hero{grid-template-columns:1fr}.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:620px){.grid{grid-template-columns:1fr}nav a{display:none}}
+    .small-muted{color:var(--muted);font-size:14px}
+
+    /* Map-specific styles */
+    .map-wrapper { height:160px; border-radius:8px; overflow:hidden; background:#eef2f5; display:flex; align-items:center; justify-content:center; color:var(--muted); }
+    #map { width:100%; height:100%; }
+    .locate-btn { cursor:pointer; }
   </style>
 </head>
 <body>
   <div class="container">
     <header>
-      <div class="brand"><div class="logo">S</div><div><div style="font-weight:700">Spotless</div><div style="font-size:12px;color:var(--muted)">Trusted cleaners on demand</div></div></div>
-      <nav><a href="#services" style="color:var(--muted);text-decoration:none;margin-left:18px">Services</a></nav>
+      <div class="brand">
+        <div class="logo">S</div>
+        <div>
+          <div style="font-weight:700">Spotless</div>
+          <div style="font-size:12px;color:var(--muted)">Trusted cleaners on demand</div>
+        </div>
+      </div>
+      <nav>
+        <a href="#services">Services</a>
+        <a href="#how">How it works</a>
+        <a href="#testimonials">Reviews</a>
+        <a href="#contact">Contact</a>
+      </nav>
     </header>
 
     <main>
       <section class="hero">
         <div>
           <h1>Book vetted cleaners in minutes — home, office, or one-off tasks</h1>
-          <p style="color:var(--muted)">Fast booking, secure messaging and instant confirmations.</p>
-
-          <div style="margin-top:18px">
-            <div class="field"><label>Full name</label><input id="custName" type="text" placeholder="Your name"></div>
-            <div class="field"><label>Email</label><input id="custEmail" type="email" placeholder="you@example.com"></div>
-            <div class="field"><label>Service</label>
-              <select id="serviceSelect">
-                <option value="standard" data-price="20">Standard Cleaning</option>
-                <option value="deep" data-price="35">Deep Cleaning</option>
-                <option value="move" data-price="80">Move In/Out — Flat</option>
-              </select>
-            </div>
-            <div class="field"><label>Date</label><input id="date" type="date"></div>
-            <div class="field"><label>Time</label><input id="time" type="time"></div>
-            <div class="field"><label>Duration (hours)</label><input id="duration" type="number" value="2" min="1"></div>
-            <div class="field"><label>Address</label><input id="address" type="text" placeholder="123 Main St"></div>
-
-            <div style="display:flex;align-items:center;gap:8px;margin:12px 0"><strong>Estimated:</strong><div id="estimate">$40.00</div></div>
-
-            <button id="bookNow" class="btn">Confirm booking</button>
-            <div id="bookingMessage" style="color:green;margin-top:10px;display:none">Booking saved — chat opened below.</div>
+          <p>Fast booking, secure payments, background-checked professionals and real-time messaging.</p>
+          <div class="cta-row">
+            <button class="btn" id="startBooking">Book a cleaner</button>
+            <button class="outline" onclick="window.location='#services'">Explore services</button>
           </div>
+
+          <!-- SERVICE CARDS (no visible prices) -->
+          <div class="grid" style="margin-top:22px">
+            <div class="card" onclick="selectService('standard')" role="button" tabindex="0">
+              <h3>Standard Cleaning</h3>
+              <p class="small-muted">General home cleaning — kitchen, bathrooms, living areas.</p>
+            </div>
+
+            <div class="card" onclick="selectService('deep')" role="button" tabindex="0">
+              <h3>Deep Cleaning</h3>
+              <p class="small-muted">Extra attention to hidden dirt and high-touch areas.</p>
+            </div>
+
+            <div class="card" onclick="selectService('move')" role="button" tabindex="0">
+              <h3>Move In / Move Out</h3>
+              <p class="small-muted">Full-service clean to prepare for moving.</p>
+            </div>
+          </div>
+
+          <section id="how" style="margin-top:18px">
+            <h3>How it works</h3>
+            <ol style="color:var(--muted)">
+              <li>Pick a service and time.</li>
+              <li>We match you with a vetted cleaner.</li>
+              <li>Track, message & pay securely after the job.</li>
+            </ol>
+          </section>
         </div>
 
         <aside>
-          <div style="background:#fff;border-radius:12px;padding:18px;box-shadow:0 6px 18px rgba(2,6,23,0.06)">
-            <h3 style="margin-top:0">Quick booking panel</h3>
-            <p style="color:var(--muted)">Or explore services below.</p>
-            <div class="map-wrapper"><div id="map">Map loading…</div></div>
+          <div class="panel" id="bookingPanel">
+            <h3 style="margin-top:0">Quick booking</h3>
+
+            <div class="field">
+              <label for="serviceSelect">Service</label>
+              <select id="serviceSelect">
+                <option value="standard" data-price="20">Standard Cleaning</option>
+                <option value="deep" data-price="20">Deep Cleaning</option>
+                <option value="move" data-price="20">Move In/Out — Flat</option>
+              </select>
+            </div>
+
+            <div class="field"><label for="date">Date</label><input type="date" id="date"></div>
+            <div class="field"><label for="time">Time</label><input type="time" id="time"></div>
+            <div class="field"><label for="duration">Duration (hours)</label><input type="number" id="duration" value="2" min="1"></div>
+            <div class="field"><label for="address">Address</label><input type="text" id="address" placeholder="123 Main St, City, Province"></div>
+
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <div style="font-weight:700">Estimated:</div>
+              <div id="estimate">$40.00</div>
+            </div>
+
+            <div style="display:flex;gap:8px">
+              <button class="btn" id="bookNow">Confirm booking</button>
+              <a class="outline" href="booking.html" style="display:inline-flex;align-items:center;padding:10px 14px;border-radius:10px;text-decoration:none;color:inherit">Full booking page</a>
+            </div>
+
+            <div id="bookingMessage" style="margin-top:10px;color:green;display:none">Booking placed! Check your email for confirmation.</div>
           </div>
         </aside>
       </section>
 
       <section id="services" style="margin-top:28px">
         <h2>All services</h2>
-        <p style="color:var(--muted)">Standard, deep and move-in/out cleaning.</p>
+        <div class="grid">
+          <div class="card" onclick="selectService('standard')" role="button" tabindex="0">
+            <h3>Standard Home Cleaning</h3>
+            <p class="small-muted">Weekly, bi-weekly or one-time visits.</p>
+          </div>
+          <div class="card" onclick="selectService('deep')" role="button" tabindex="0">
+            <h3>Deep Clean</h3>
+            <p class="small-muted">Thorough cleaning for bathrooms, kitchens, and floors.</p>
+          </div>
+          <div class="card" onclick="selectService('move')" role="button" tabindex="0">
+            <h3>Office & Commercial</h3>
+            <p class="small-muted">Regular janitorial and scheduled cleans for workplaces.</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="testimonials" style="margin-top:28px">
+        <h2>What customers say</h2>
+        <div class="testimonials">
+          <div class="testimonial"><strong>Maria G.</strong><p class="small-muted">"Excellent cleaners — highly recommend."</p></div>
+          <div class="testimonial"><strong>Jason R.</strong><p class="small-muted">"Easy booking. My place looks new."</p></div>
+        </div>
+      </section>
+
+      <section id="contact" style="margin-top:28px">
+        <h2>Contact & Support</h2>
+        <div class="card" style="display:flex;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:260px">
+            <p class="small-muted">Have a question? Send us a message.</p>
+            <div class="field"><label>Name</label><input type="text" id="contactName"></div>
+            <div class="field"><label>Email</label><input type="text" id="contactEmail"></div>
+            <div class="field"><label>Message</label><textarea id="contactMessage" rows="4"></textarea></div>
+            <button class="btn" id="sendContact">Send message</button>
+            <div id="contactResult" style="color:green;display:none;margin-top:10px">Thanks — we'll reply within 24 hours.</div>
+          </div>
+
+          <div style="flex:1;min-width:260px">
+            <h4>Business info</h4>
+            <p class="small-muted">Email: sadetubi1978@gmail.com<br>Phone: 236-662-0309 / 236-662-0302</p>
+
+            <!-- Map wrapper + actual Leaflet map -->
+            <div class="map-wrapper" aria-label="Map showing location">
+              <div id="map">Map loading…</div>
+            </div>
+
+          </div>
+        </div>
       </section>
     </main>
+
+    <footer>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap">
+        <div style="font-weight:700">Spotless</div>
+        <div style="color:var(--muted)">© <span id="year"></span> Spotless Inc. All rights reserved.</div>
+      </div>
+    </footer>
   </div>
 
-  <!-- Chat widget -->
-  <div id="chatWidget">
-    <div id="chatHeader">Message the cleaner</div>
-    <div id="chatMessages"></div>
-    <div id="chatInput">
-      <input id="chatText" placeholder="Type your message...">
-      <button id="chatSend">Send</button>
-    </div>
-  </div>
-
-  <!-- Leaflet + Supabase -->
+  <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
 
   <script>
-    // ---------- Supabase init ----------
-    const SUPABASE_URL = "https://zlkvkzmkenbtuvulfpsl.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpsa3Zrem1rZW5idHV2dWxmcHNsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQzOTg3MTIsImV4cCI6MjA3OTk3NDcxMn0.wdEv5EWZIBOCZ6NRzY67xLO0ekXKsHjw9GHGK5Akhlw";
-    const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    // dynamic pricing (demo): base = 20, increases +10% per 20 jobs if rating >=4.5
+    let jobsCompleted = 0; // replace with actual value from backend per cleaner
+    let avgRating = 5;     // replace with actual rating from backend
 
-    // ---------- Map ----------
-    const map = L.map('map').setView([20,0],2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(p=>{
-        const lat=p.coords.latitude, lng=p.coords.longitude;
-        map.setView([lat,lng],12);
-        L.marker([lat,lng]).addTo(map).bindPopup('You are here').openPopup();
-      });
+    function getDynamicRate(base){
+      if(avgRating < 4.5) return base;
+      const tiers = Math.floor(jobsCompleted / 20);
+      return base * (1 + 0.10 * tiers);
     }
 
-    // ---------- UI helpers ----------
+    const serviceSelect = document.getElementById('serviceSelect');
+    const duration = document.getElementById('duration');
     const estimateEl = document.getElementById('estimate');
+
     function calcEstimate(){
-      const opt = document.getElementById('serviceSelect').selectedOptions[0];
-      const price = Number(opt.dataset.price || 20);
-      const dur = Number(document.getElementById('duration').value || 1);
-      const total = (opt.value === 'move') ? price : price * dur;
-      estimateEl.textContent = '$' + total.toFixed(2);
+      if(!serviceSelect || !duration || !estimateEl) return;
+      const opt = serviceSelect.options[serviceSelect.selectedIndex];
+      let price = Number(opt.dataset.price || 20);
+      if(opt.value !== "move"){ price = getDynamicRate(price); }
+      const dur = Number(duration.value || 1);
+      const total = (opt.value === "move") ? price : price * dur;
+      estimateEl.textContent = "$" + total.toFixed(2);
     }
-    document.getElementById('serviceSelect').addEventListener('change', calcEstimate);
-    document.getElementById('duration').addEventListener('input', calcEstimate);
-    calcEstimate();
 
-    // ---------- Booking flow ----------
-    let activeBookingId = null;
-    document.getElementById('bookNow').addEventListener('click', async ()=>{
-      const name = document.getElementById('custName').value.trim();
-      const email = document.getElementById('custEmail').value.trim();
-      const service = document.getElementById('serviceSelect').value;
-      const date = document.getElementById('date').value;
-      const time = document.getElementById('time').value;
-      const duration = document.getElementById('duration').value;
-      const address = document.getElementById('address').value.trim();
-      const price = estimateEl.textContent.replace('$','');
+    // selectService used by clicking cards
+    function selectService(id){
+      // set select if exists
+      if(serviceSelect){
+        serviceSelect.value = id;
+        // if duration element missing, default handled in calcEstimate
+        calcEstimate();
+      }
+      // scroll to top (booking panel)
+      const panel = document.getElementById('bookingPanel');
+      if(panel) panel.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+    window.selectService = selectService;
 
-      if(!name || !email || !date || !time || !address){ alert('Please fill required fields'); return; }
+    // Map variables (will be set inside DOMContentLoaded)
+    let map, userLatLng = null, userInteracted = false;
 
-      const { data, error } = await supabase.from('bookings').insert([{
-        name, email, service, date, time, duration, address, price, status: 'pending'
-      }]).select().single();
+    // wire up events safely (elements exist)
+    document.addEventListener('DOMContentLoaded', ()=>{
+      // calc estimate initial
+      calcEstimate();
 
-      if(error){ console.error(error); alert('Could not save booking'); return; }
+      if(serviceSelect) serviceSelect.addEventListener('change', calcEstimate);
+      if(duration) duration.addEventListener('input', calcEstimate);
 
-      activeBookingId = data.id;
-      document.getElementById('bookingMessage').style.display = 'block';
-      openChatWidget();
-      // Insert initial system message (optional)
-      await supabase.from('messages').insert([{ booking_id: activeBookingId, sender: 'system', text: 'Booking created. Cleaner will contact you here.' }]);
+      const startBooking = document.getElementById('startBooking');
+      if(startBooking) startBooking.addEventListener('click', ()=>{ selectService('standard'); });
+
+      const bookNow = document.getElementById('bookNow');
+      if(bookNow){
+        bookNow.addEventListener('click', ()=>{
+          // quick demo flow: copy fields to booking page via URL params
+          const date = document.getElementById('date').value;
+          const time = document.getElementById('time').value;
+          const addr = document.getElementById('address').value.trim();
+          const service = serviceSelect ? serviceSelect.value : 'standard';
+          const dur = document.getElementById('duration').value || 1;
+          if(!date || !time || !addr){ alert('Please pick date, time and enter an address.'); return; }
+          // Build URL with params and go to booking.html
+          const params = new URLSearchParams({service, date, time, addr, dur});
+          window.location.href = 'booking.html?' + params.toString();
+        });
+      }
+
+      // contact form
+      const sendContact = document.getElementById('sendContact');
+      if(sendContact){
+        sendContact.addEventListener('click', ()=>{
+          const name = document.getElementById('contactName').value.trim();
+          const email = document.getElementById('contactEmail').value.trim();
+          const msg = document.getElementById('contactMessage').value.trim();
+          if(!name || !email || !msg){ alert('Please fill all fields'); return; }
+          document.getElementById('contactResult').style.display='block';
+          setTimeout(()=>{document.getElementById('contactResult').style.display='none';},4000);
+        });
+      }
+
+      document.getElementById('year').textContent = new Date().getFullYear();
+
+      /* -------------------------
+         Leaflet map initialization
+         ------------------------- */
+      const mapEl = document.getElementById('map');
+      if(mapEl && typeof L !== 'undefined'){
+        // Create map with default world view
+        map = L.map(mapEl, { worldCopyJump: true }).setView([20, 0], 2);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OpenStreetMap contributors',
+          maxZoom: 19
+        }).addTo(map);
+
+        // Mark user interaction to avoid re-centering if the user pans/zooms
+        const markUserInteracted = ()=> { userInteracted = true; };
+        map.once('movestart', markUserInteracted);
+        map.once('zoomstart', markUserInteracted);
+
+        // Try HTML5 geolocation once (initial centering)
+        if(navigator.geolocation){
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              userLatLng = [pos.coords.latitude, pos.coords.longitude];
+              // Only set view if user hasn't already interacted
+              if(!userInteracted){
+                map.setView(userLatLng, 12);
+              }
+              // Add a marker at the user's location
+              L.marker(userLatLng).addTo(map).bindPopup('You are here').openPopup();
+            },
+            (err) => {
+              // Geolocation failed or denied — leave world view
+              console.warn('Geolocation failed:', err && err.message);
+              // Optionally you could display a small popup on the map:
+              // L.popup({closeButton:false,autoClose:false}).setLatLng(map.getCenter()).setContent('Location unavailable — showing world view').openOn(map);
+            },
+            { enableHighAccuracy: true, timeout: 7000 }
+          );
+        }
+
+        // Add a small locate control so user can re-center if they want
+        const locateControl = L.control({ position: 'topright' });
+        locateControl.onAdd = function() {
+          const btn = L.DomUtil.create('button', 'locate-btn');
+          btn.innerHTML = '📍';
+          btn.title = 'Center map on your location';
+          // simple inline styling for the control button
+          btn.style.background = 'white';
+          btn.style.border = 'none';
+          btn.style.padding = '6px 8px';
+          btn.style.borderRadius = '6px';
+          btn.style.boxShadow = '0 1px 4px rgba(0,0,0,0.12)';
+          btn.style.cursor = 'pointer';
+
+          L.DomEvent.on(btn, 'click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            // If we already have coords, reuse; otherwise ask for position again
+            if(userLatLng){
+              map.setView(userLatLng, 12);
+            } else if(navigator.geolocation){
+              navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                  userLatLng = [pos.coords.latitude, pos.coords.longitude];
+                  map.setView(userLatLng, 12);
+                  L.marker(userLatLng).addTo(map).bindPopup('You are here').openPopup();
+                },
+                (err) => { alert('Could not get location: ' + (err && err.message ? err.message : 'permission denied')); }
+              );
+            } else {
+              alert('Geolocation not supported in this browser.');
+            }
+          });
+
+          return btn;
+        };
+        locateControl.addTo(map);
+      }
+      /* end Leaflet */
     });
-
-    // ---------- Chat widget (customer side) ----------
-    function openChatWidget(){ document.getElementById('chatWidget').style.display='flex'; document.getElementById('chatText').focus(); }
-    async function loadMessagesForBooking(bookingId){
-      if(!bookingId) return;
-      const { data } = await supabase.from('messages').select('*').eq('booking_id', bookingId).order('created_at',{ascending:true});
-      const box = document.getElementById('chatMessages'); box.innerHTML = '';
-      data.forEach(m => appendMsgToBox(m));
-      box.scrollTop = box.scrollHeight;
-    }
-
-    function appendMsgToBox(m){
-      const el = document.createElement('div');
-      if(m.sender === 'cleaner') { el.className = 'msg-cleaner'; el.textContent = 'Cleaner: ' + m.text; }
-      else if(m.sender === 'customer') { el.className = 'msg-customer'; el.textContent = 'You: ' + m.text; }
-      else { el.style.opacity=0.85; el.textContent = m.text; }
-      document.getElementById('chatMessages').appendChild(el);
-    }
-
-    document.getElementById('chatSend').addEventListener('click', async ()=>{
-      const txt = document.getElementById('chatText').value.trim();
-      if(!txt || !activeBookingId) { if(!activeBookingId) alert('Please create booking first.'); return; }
-      await supabase.from('messages').insert([{ booking_id: activeBookingId, sender: 'customer', text: txt }]);
-      document.getElementById('chatText').value = '';
-    });
-
-    // Real-time subscription for messages (all bookings)
-    const channel = supabase.channel('public:messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-        const m = payload.new;
-        // if this message belongs to current booking, append
-        if(m.booking_id === activeBookingId) appendMsgToBox(m);
-      }).subscribe();
-
-    // When chat widget opens after booking, load its messages and subscribe to updates
-    async function ensureBookingChatLoaded(){
-      if(activeBookingId) { await loadMessagesForBooking(activeBookingId); }
-    }
-
-    // helper: when booking created we called openChatWidget; ensure messages load
-    // Poll for activeBookingId set
-    setInterval(()=>{ if(activeBookingId) ensureBookingChatLoaded(); }, 1500);
-
-    // allow pressing Enter to send
-    document.getElementById('chatText').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); document.getElementById('chatSend').click(); } });
-
-    // set year
-    document.addEventListener('DOMContentLoaded', ()=>{ try{document.querySelector('footer') && document.getElementById('year') && (document.getElementById('year').textContent = new Date().getFullYear()); }catch(e){} });
   </script>
 </body>
 </html>
+
+
